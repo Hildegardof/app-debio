@@ -37,9 +37,6 @@ elif ferramenta_escolhida == "📊 Índice Aritmético e Áreas":
     st.title("📊 Índice Aritmético (Kovats) e Áreas")
     st.write("Processamento automático de triplicatas via Template DeBio.")
 
-    # -----------------------------------------
-    # PASSO 0: GERADOR DE TEMPLATES EM EXCEL
-    # -----------------------------------------
     st.subheader("📥 0. Baixe os Templates Padrão")
     st.write("Se for o seu primeiro acesso, baixe os arquivos abaixo e preencha com seus dados brutos.")
     
@@ -68,9 +65,6 @@ elif ferramenta_escolhida == "📊 Índice Aritmético e Áreas":
 
     st.divider()
 
-    # -----------------------------------------
-    # PASSO 1 & 2: ENTRADA DE DADOS
-    # -----------------------------------------
     col_entrada1, col_entrada2 = st.columns(2)
     with col_entrada1:
         st.subheader("1. Amostra (Triplicata)")
@@ -98,9 +92,6 @@ elif ferramenta_escolhida == "📊 Índice Aritmético e Áreas":
             arq_alcanos = st.file_uploader("Suba o arquivo (.xlsx)", type=["xlsx"], key="up_alc")
             if arq_alcanos: tabela_alcanos = pd.read_excel(arq_alcanos)
 
-    # -----------------------------------------
-    # PASSO 3: O CÉREBRO (CÁLCULOS AUTOMÁTICOS)
-    # -----------------------------------------
     if tabela_amostra is not None and tabela_alcanos is not None:
         st.divider()
         if st.button("🚀 Processar o calculo de IRL", use_container_width=True):
@@ -146,10 +137,8 @@ elif ferramenta_escolhida == "📊 Índice Aritmético e Áreas":
                 colunas_finais = ['Pico', 'TR_Medio', 'Area_Media', 'Area_Relativa_%', 'IRL_Calculado', 'TR_1', 'TR_2', 'TR_3', 'Area_1', 'Area_2', 'Area_3']
                 amostra = amostra[[c for c in colunas_finais if c in amostra.columns]]
                 
-                # Salva o resultado na memória do site para não sumir
                 st.session_state['resultado_calculo'] = amostra
                 
-                # Prepara a tabela de identificação limpa
                 df_ident = amostra[['Pico', 'TR_Medio', 'IRL_Calculado']].copy()
                 df_ident['IRL_Literatura'] = None
                 df_ident['Identificacao'] = ""
@@ -159,12 +148,10 @@ elif ferramenta_escolhida == "📊 Índice Aritmético e Áreas":
             except Exception as e:
                 st.error(f"Erro no processamento: {e}")
 
-        # Se o cálculo já foi feito e está na memória, mostra as tabelas e botões
         if 'resultado_calculo' in st.session_state:
             st.success("✅ Triplicatas processadas, Área Relativa e IRL calculados com sucesso!")
             st.dataframe(st.session_state['resultado_calculo'], use_container_width=True)
             
-            # Botão Verde de Download da Tabela Bruta
             buffer_bruto = io.BytesIO()
             with pd.ExcelWriter(buffer_bruto, engine='openpyxl') as writer:
                 st.session_state['resultado_calculo'].to_excel(writer, index=False, sheet_name='Resultados_IRL')
@@ -174,26 +161,21 @@ elif ferramenta_escolhida == "📊 Índice Aritmético e Áreas":
                 data=buffer_bruto.getvalue(), 
                 file_name="Resultados_Brutos_IRL.xlsx", 
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                type="primary" # Isso deixa o botão em destaque!
+                type="primary"
             )
 
             st.divider()
 
-            # -----------------------------------------
-            # PASSO 4: IDENTIFICAÇÃO MANUAL
-            # -----------------------------------------
             st.subheader("🔍 Identificação dos Compostos")
-            st.write("Dê um duplo-clique nas células das colunas vazias abaixo para digitar as informações. Quando terminar, baixe a tabela pronta.")
+            st.write("Dê um duplo-clique nas células das colunas vazias abaixo para digitar as informações.")
             
-            # Tabela Editável
             tabela_editada = st.data_editor(
                 st.session_state['tabela_identificacao'], 
                 use_container_width=True,
-                disabled=["Pico", "TR_Medio", "IRL_Calculado"], # Trava as colunas calculadas para ninguém estragar sem querer
+                disabled=["Pico", "TR_Medio", "IRL_Calculado"], 
                 hide_index=True
             )
 
-            # Botão de Download da Tabela Editada
             buffer_ident = io.BytesIO()
             with pd.ExcelWriter(buffer_ident, engine='openpyxl') as writer:
                 tabela_editada.to_excel(writer, index=False, sheet_name='Identificacao')
@@ -207,8 +189,96 @@ elif ferramenta_escolhida == "📊 Índice Aritmético e Áreas":
             )
 
 # =========================================
-# TELA 3: CONVERSÃO DE UNIDADES
+# TELA 3: CONVERSÃO DE UNIDADES (ATUALIZADO)
 # =========================================
 elif ferramenta_escolhida == "🔄 Conversão de Unidades":
-    st.title("🔄 Conversão")
-    st.warning("🚧 Módulo em construção...")
+    st.title("🔄 Conversão de Unidades e Diluição")
+    st.write("Calculadora rápida para preparo de padrões e leitura de artigos.")
+    
+    tipo_conversao = st.selectbox(
+        "Selecione o tipo de cálculo que deseja fazer:",
+        [
+            "1. mg/mL ➔ ppm (ou µg/mL)",
+            "2. ppm (ou µg/mL) ➔ mg/mL",
+            "3. % (m/v) ➔ mg/mL",
+            "4. mg/mL ➔ % (m/v)",
+            "5. % (v/v) ➔ µL/mL",
+            "6. Molaridade (mol/L) ➔ Concentração Comum (g/L)",
+            "7. Concentração Comum (g/L) ➔ Molaridade (mol/L)",
+            "8. Preparo de Diluições (C1V1 = C2V2)"
+        ]
+    )
+    
+    st.divider()
+    
+    # 1. mg/mL para ppm
+    if tipo_conversao == "1. mg/mL ➔ ppm (ou µg/mL)":
+        valor = st.number_input("Digite a concentração em mg/mL:", min_value=0.0, format="%.4f")
+        if valor > 0:
+            st.success(f"🧪 **Resultado:** {valor} mg/mL = **{valor * 1000:.2f} ppm** (ou µg/mL)")
+            
+    # 2. ppm para mg/mL
+    elif tipo_conversao == "2. ppm (ou µg/mL) ➔ mg/mL":
+        valor = st.number_input("Digite a concentração em ppm (ou µg/mL):", min_value=0.0, format="%.4f")
+        if valor > 0:
+            st.success(f"🧪 **Resultado:** {valor} ppm = **{valor / 1000:.4f} mg/mL**")
+            
+    # 3. % (m/v) para mg/mL
+    elif tipo_conversao == "3. % (m/v) ➔ mg/mL":
+        valor = st.number_input("Digite a porcentagem % (m/v):", min_value=0.0, format="%.4f")
+        if valor > 0:
+            st.success(f"🧪 **Resultado:** {valor}% = **{valor * 10:.2f} mg/mL**")
+            
+    # 4. mg/mL para % (m/v)
+    elif tipo_conversao == "4. mg/mL ➔ % (m/v)":
+        valor = st.number_input("Digite a concentração em mg/mL:", min_value=0.0, format="%.4f")
+        if valor > 0:
+            st.success(f"🧪 **Resultado:** {valor} mg/mL = **{valor / 10:.4f}% (m/v)**")
+
+    # 5. % (v/v) para µL/mL (Ideal para OEs)
+    elif tipo_conversao == "5. % (v/v) ➔ µL/mL":
+        valor = st.number_input("Digite a porcentagem em volume % (v/v):", min_value=0.0, format="%.4f")
+        if valor > 0:
+            st.success(f"🧪 **Resultado:** {valor}% (v/v) = **{valor * 10:.2f} µL/mL**")
+            st.info("💡 Exemplo: 1% de óleo essencial significa pipetar 10 µL de óleo para cada 1 mL de solvente final.")
+
+    # 6. Molaridade para Concentração
+    elif tipo_conversao == "6. Molaridade (mol/L) ➔ Concentração Comum (g/L)":
+        molaridade = st.number_input("Molaridade (mol/L):", min_value=0.0, format="%.4f")
+        massa_molar = st.number_input("Massa Molar do composto (g/mol):", min_value=0.0, format="%.2f")
+        if molaridade > 0 and massa_molar > 0:
+            conc_gl = molaridade * massa_molar
+            st.success(f"🧪 **Resultado:** A concentração é **{conc_gl:.4f} g/L** (ou {conc_gl:.4f} mg/mL)")
+
+    # 7. Concentração para Molaridade
+    elif tipo_conversao == "7. Concentração Comum (g/L) ➔ Molaridade (mol/L)":
+        conc_gl = st.number_input("Concentração Comum (g/L ou mg/mL):", min_value=0.0, format="%.4f")
+        massa_molar = st.number_input("Massa Molar do composto (g/mol):", min_value=0.0, format="%.2f")
+        if conc_gl > 0 and massa_molar > 0:
+            molaridade = conc_gl / massa_molar
+            st.success(f"🧪 **Resultado:** A molaridade é **{molaridade:.6f} mol/L** (M)")
+
+    # 8. Diluição (C1V1 = C2V2)
+    elif tipo_conversao == "8. Preparo de Diluições (C1V1 = C2V2)":
+        st.write("A famosa regra: $C_1 \cdot V_1 = C_2 \cdot V_2$")
+        st.info("Mantenha as unidades de concentração e volume iguais nos dois lados (ex: se usar mL de um lado, o resultado será em mL).")
+        
+        descobrir = st.radio("O que você deseja calcular?", ["Volume Inicial (V1) - Quanto pipetar?", "Concentração Final (C2) - Após diluir"])
+        
+        if descobrir == "Volume Inicial (V1) - Quanto pipetar?":
+            c1 = st.number_input("Concentração da solução ESTOQUE (C1):", min_value=0.0, format="%.4f")
+            c2 = st.number_input("Concentração DESEJADA (C2):", min_value=0.0, format="%.4f")
+            v2 = st.number_input("Volume final DESEJADO (V2):", min_value=0.0, format="%.4f")
+            
+            if c1 > 0 and c2 > 0 and v2 > 0:
+                v1 = (c2 * v2) / c1
+                st.success(f"🧪 **Você precisa pipetar:** **{v1:.4f}** da solução estoque e completar o volume até {v2}.")
+                
+        elif descobrir == "Concentração Final (C2) - Após diluir":
+            c1 = st.number_input("Concentração da solução ESTOQUE (C1):", min_value=0.0, format="%.4f")
+            v1 = st.number_input("Volume pipetado do estoque (V1):", min_value=0.0, format="%.4f")
+            v2 = st.number_input("Volume TOTAL após adicionar solvente (V2):", min_value=0.0, format="%.4f")
+            
+            if c1 > 0 and v1 > 0 and v2 > 0:
+                c2 = (c1 * v1) / v2
+                st.success(f"🧪 **A Concentração Final (C2) será:** **{c2:.4f}**")
